@@ -1,104 +1,181 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Support CRM</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 min-h-screen">
+<body class="bg-gray-50 min-h-screen">
 
-  <!-- Top Navbar -->
-  <nav class="bg-blue-700 text-white px-6 py-4 flex justify-between items-center shadow">
-    <h1 class="text-xl font-bold">🎫 Support CRM</h1>
-    <a href="/create" class="bg-white text-blue-700 font-semibold px-4 py-2 rounded hover:bg-blue-50">
-      + New Ticket
-    </a>
+  <!-- Navbar -->
+  <nav class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center sticky top-0 z-10 shadow-sm">
+    <div class="flex items-center gap-3">
+      <span class="text-xl font-bold text-blue-600">🎫 Support CRM</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <span id="userBadge" class="text-sm text-gray-500"></span>
+      <a href="/create" class="bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-blue-700 transition">+ New Ticket</a>
+      <a id="adminLink" href="/admin" class="hidden text-sm text-gray-600 hover:text-blue-600 font-medium">Admin</a>
+      <a href="/logout" class="text-sm text-red-500 hover:underline">Logout</a>
+    </div>
   </nav>
 
-  <div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="max-w-7xl mx-auto px-4 py-6">
 
-    <!-- Search and Filter Bar -->
-    <div class="flex flex-col sm:flex-row gap-3 mb-6">
-      <input
-        id="searchInput"
-        type="text"
-        placeholder="Search by name, email, subject, ticket ID..."
-        class="flex-1 border border-gray-300 rounded px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        oninput="loadTickets()"
-      />
-      <select
-        id="statusFilter"
-        class="border border-gray-300 rounded px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-        onchange="loadTickets()"
-      >
+    <!-- Filters Row -->
+    <div class="flex flex-wrap gap-3 mb-6">
+      <input id="searchInput" type="text" placeholder="Search tickets..."
+        class="flex-1 min-w-[200px] border border-gray-300 rounded-lg px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+        oninput="loadTickets()"/>
+
+      <select id="statusFilter" onchange="loadTickets()"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
         <option value="">All Statuses</option>
         <option value="Open">Open</option>
         <option value="In Progress">In Progress</option>
         <option value="Closed">Closed</option>
       </select>
+
+      <select id="priorityFilter" onchange="loadTickets()"
+        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+        <option value="">All Priorities</option>
+        <option value="Urgent">Urgent</option>
+        <option value="High">High</option>
+        <option value="Medium">Medium</option>
+        <option value="Low">Low</option>
+      </select>
+
+      <!-- View Toggle -->
+      <div class="flex border border-gray-300 rounded-lg overflow-hidden">
+        <button id="listBtn" onclick="setView('list')"
+          class="px-4 py-2 text-sm font-medium bg-blue-600 text-white transition">
+          ☰ List
+        </button>
+        <button id="kanbanBtn" onclick="setView('kanban')"
+          class="px-4 py-2 text-sm font-medium bg-white text-gray-600 transition">
+          ⊞ Kanban
+        </button>
+      </div>
     </div>
 
-    <!-- Tickets Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
-      <table class="w-full text-sm text-left">
-        <thead class="bg-blue-700 text-white uppercase text-xs">
-          <tr>
-            <th class="px-4 py-3">Ticket ID</th>
-            <th class="px-4 py-3">Customer</th>
-            <th class="px-4 py-3">Subject</th>
-            <th class="px-4 py-3">Status</th>
-            <th class="px-4 py-3">Created</th>
-            <th class="px-4 py-3">Action</th>
-          </tr>
-        </thead>
-        <tbody id="ticketTableBody">
-          <tr><td colspan="6" class="text-center py-8 text-gray-400">Loading tickets...</td></tr>
-        </tbody>
-      </table>
+    <!-- LIST VIEW -->
+    <div id="listView">
+      <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <table class="w-full text-sm text-left">
+          <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
+            <tr>
+              <th class="px-4 py-3">Ticket ID</th>
+              <th class="px-4 py-3">Subject</th>
+              <th class="px-4 py-3">Priority</th>
+              <th class="px-4 py-3">Status</th>
+              <th class="px-4 py-3">Assigned To</th>
+              <th class="px-4 py-3">Created</th>
+              <th class="px-4 py-3">Action</th>
+            </tr>
+          </thead>
+          <tbody id="ticketTableBody">
+            <tr><td colspan="7" class="text-center py-10 text-gray-400">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- KANBAN VIEW -->
+    <div id="kanbanView" class="hidden">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Open Column -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-green-500"></span>
+              <span class="font-semibold text-gray-700 text-sm">Open</span>
+            </div>
+            <span id="openCount" class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">0</span>
+          </div>
+          <div id="openColumn" class="p-3 space-y-3 min-h-[200px]"></div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-yellow-500"></span>
+              <span class="font-semibold text-gray-700 text-sm">In Progress</span>
+            </div>
+            <span id="progressCount" class="text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">0</span>
+          </div>
+          <div id="progressColumn" class="p-3 space-y-3 min-h-[200px]"></div>
+        </div>
+
+        <!-- Closed Column -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-200">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+              <span class="font-semibold text-gray-700 text-sm">Closed</span>
+            </div>
+            <span id="closedCount" class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">0</span>
+          </div>
+          <div id="closedColumn" class="p-3 space-y-3 min-h-[200px]"></div>
+        </div>
+      </div>
     </div>
 
   </div>
 
   <script>
-    // Color badge for status
-    function statusBadge(status) {
-      const colors = {
-        "Open": "bg-green-100 text-green-700",
-        "In Progress": "bg-yellow-100 text-yellow-700",
-        "Closed": "bg-gray-200 text-gray-600"
-      };
-      return `<span class="px-2 py-1 rounded-full text-xs font-semibold ${colors[status] || ''}">${status}</span>`;
+    let currentView = "list";
+    let allTickets = [];
+
+    const priorityColors = {
+      "Urgent": "bg-red-100 text-red-700",
+      "High": "bg-orange-100 text-orange-700",
+      "Medium": "bg-yellow-100 text-yellow-700",
+      "Low": "bg-green-100 text-green-700"
+    };
+
+    const statusColors = {
+      "Open": "bg-green-100 text-green-700",
+      "In Progress": "bg-yellow-100 text-yellow-700",
+      "Closed": "bg-gray-100 text-gray-600"
+    };
+
+    function badge(text, colorMap) {
+      const cls = colorMap[text] || "bg-gray-100 text-gray-600";
+      return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${text}</span>`;
     }
 
-    // Fetch and display tickets
-    async function loadTickets() {
-      const search = document.getElementById("searchInput").value;
-      const status = document.getElementById("statusFilter").value;
+    function setView(view) {
+      currentView = view;
+      if (view === "list") {
+        document.getElementById("listView").classList.remove("hidden");
+        document.getElementById("kanbanView").classList.add("hidden");
+        document.getElementById("listBtn").className = "px-4 py-2 text-sm font-medium bg-blue-600 text-white transition";
+        document.getElementById("kanbanBtn").className = "px-4 py-2 text-sm font-medium bg-white text-gray-600 transition";
+      } else {
+        document.getElementById("listView").classList.add("hidden");
+        document.getElementById("kanbanView").classList.remove("hidden");
+        document.getElementById("listBtn").className = "px-4 py-2 text-sm font-medium bg-white text-gray-600 transition";
+        document.getElementById("kanbanBtn").className = "px-4 py-2 text-sm font-medium bg-blue-600 text-white transition";
+      }
+      renderTickets(allTickets);
+    }
 
-      let url = `/api/tickets?`;
-      if (search) url += `search=${encodeURIComponent(search)}&`;
-      if (status) url += `status=${encodeURIComponent(status)}`;
-
-      const res = await fetch(url);
-      const tickets = await res.json();
+    function renderListView(tickets) {
       const tbody = document.getElementById("ticketTableBody");
-
       if (tickets.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-gray-400">No tickets found.</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">No tickets found.</td></tr>`;
         return;
       }
-
       tbody.innerHTML = tickets.map(t => `
-        <tr class="border-t hover:bg-gray-50">
-          <td class="px-4 py-3 font-mono text-blue-600">${t.ticket_id}</td>
-          <td class="px-4 py-3">
-            <div class="font-medium">${t.customer_name}</div>
-            <div class="text-gray-400 text-xs">${t.customer_email}</div>
-          </td>
-          <td class="px-4 py-3">${t.subject}</td>
-          <td class="px-4 py-3">${statusBadge(t.status)}</td>
-          <td class="px-4 py-3 text-gray-500 text-xs">${t.created_at}</td>
+        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-mono text-blue-600 text-xs">${t.ticket_id}</td>
+          <td class="px-4 py-3 font-medium text-gray-800 max-w-[200px] truncate">${t.subject}</td>
+          <td class="px-4 py-3">${badge(t.priority, priorityColors)}</td>
+          <td class="px-4 py-3">${badge(t.status, statusColors)}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">${t.assignee_name || "Unassigned"}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${t.created_at?.split(" ")[0]}</td>
           <td class="px-4 py-3">
             <a href="/ticket/${t.ticket_id}" class="text-blue-600 hover:underline text-xs font-medium">View →</a>
           </td>
@@ -106,9 +183,66 @@
       `).join("");
     }
 
-    // Load tickets when page opens
-    loadTickets();
-  </script>
+    function kanbanCard(t) {
+      return `
+        <a href="/ticket/${t.ticket_id}" class="block bg-gray-50 border border-gray-200 rounded-lg p-3 hover:border-blue-300 hover:shadow-sm transition cursor-pointer">
+          <div class="flex justify-between items-start mb-2">
+            <span class="font-mono text-xs text-blue-500">${t.ticket_id}</span>
+            ${badge(t.priority, priorityColors)}
+          </div>
+          <p class="text-sm font-medium text-gray-800 mb-2 line-clamp-2">${t.subject}</p>
+          <div class="flex items-center justify-between mt-2">
+            <span class="text-xs text-gray-400">${t.creator_name || "Unknown"}</span>
+            <span class="text-xs text-gray-400">${t.created_at?.split(" ")[0]}</span>
+          </div>
+          ${t.assignee_name ? `<div class="mt-1 text-xs text-indigo-500">👤 ${t.assignee_name}</div>` : ""}
+        </a>
+      `;
+    }
 
+    function renderKanbanView(tickets) {
+      const open = tickets.filter(t => t.status === "Open");
+      const progress = tickets.filter(t => t.status === "In Progress");
+      const closed = tickets.filter(t => t.status === "Closed");
+
+      document.getElementById("openColumn").innerHTML = open.length ? open.map(kanbanCard).join("") : `<p class="text-xs text-gray-400 text-center py-4">No tickets</p>`;
+      document.getElementById("progressColumn").innerHTML = progress.length ? progress.map(kanbanCard).join("") : `<p class="text-xs text-gray-400 text-center py-4">No tickets</p>`;
+      document.getElementById("closedColumn").innerHTML = closed.length ? closed.map(kanbanCard).join("") : `<p class="text-xs text-gray-400 text-center py-4">No tickets</p>`;
+
+      document.getElementById("openCount").textContent = open.length;
+      document.getElementById("progressCount").textContent = progress.length;
+      document.getElementById("closedCount").textContent = closed.length;
+    }
+
+    function renderTickets(tickets) {
+      if (currentView === "list") renderListView(tickets);
+      else renderKanbanView(tickets);
+    }
+
+    async function loadTickets() {
+      const search = document.getElementById("searchInput").value;
+      const status = document.getElementById("statusFilter").value;
+      const priority = document.getElementById("priorityFilter").value;
+      let url = `/api/tickets?`;
+      if (search) url += `search=${encodeURIComponent(search)}&`;
+      if (status) url += `status=${encodeURIComponent(status)}&`;
+      if (priority) url += `priority=${encodeURIComponent(priority)}`;
+      const res = await fetch(url);
+      allTickets = await res.json();
+      renderTickets(allTickets);
+    }
+
+    async function init() {
+      const res = await fetch("/api/me");
+      const me = await res.json();
+      document.getElementById("userBadge").textContent = `👤 ${me.name} (${me.role})`;
+      if (me.role === "admin") {
+        document.getElementById("adminLink").classList.remove("hidden");
+      }
+      loadTickets();
+    }
+
+    init();
+  </script>
 </body>
 </html>
