@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Ticket Detail</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+  <nav class="bg-blue-700 text-white px-6 py-4 flex justify-between items-center shadow">
+    <h1 class="text-xl font-bold">🎫 Support CRM</h1>
+    <a href="/" class="bg-white text-blue-700 font-semibold px-4 py-2 rounded hover:bg-blue-50">
+      ← Back to Tickets
+    </a>
+  </nav>
+
+  <div class="max-w-3xl mx-auto px-4 py-10 space-y-6">
+
+    <!-- Ticket Info Card -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <div class="flex justify-between items-start mb-4">
+        <div>
+          <p id="ticketId" class="text-blue-600 font-mono text-sm"></p>
+          <h2 id="subject" class="text-2xl font-bold text-gray-800 mt-1"></h2>
+        </div>
+        <span id="statusBadge" class="px-3 py-1 rounded-full text-sm font-semibold"></span>
+      </div>
+      <div class="grid grid-cols-2 gap-4 text-sm text-gray-600">
+        <div><span class="font-medium">Customer:</span> <span id="customerName"></span></div>
+        <div><span class="font-medium">Email:</span> <span id="customerEmail"></span></div>
+        <div><span class="font-medium">Created:</span> <span id="createdAt"></span></div>
+        <div><span class="font-medium">Updated:</span> <span id="updatedAt"></span></div>
+      </div>
+      <div class="mt-4">
+        <p class="text-sm font-medium text-gray-700">Description:</p>
+        <p id="description" class="text-gray-600 mt-1 text-sm leading-relaxed"></p>
+      </div>
+    </div>
+
+    <!-- Update Status -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="font-bold text-gray-800 mb-4">Update Status</h3>
+      <div class="flex gap-3">
+        <select id="statusSelect"
+          class="border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="Open">Open</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Closed">Closed</option>
+        </select>
+        <button onclick="updateStatus()"
+          class="bg-blue-700 text-white px-6 py-2 rounded hover:bg-blue-800 font-semibold">
+          Update
+        </button>
+      </div>
+    </div>
+
+    <!-- Add Note -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="font-bold text-gray-800 mb-4">Add a Note</h3>
+      <textarea id="noteInput" rows="3" placeholder="Write your note here..."
+        class="w-full border border-gray-300 rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 mb-3"></textarea>
+      <button onclick="addNote()"
+        class="bg-green-600 text-white px-6 py-2 rounded hover:bg-green-700 font-semibold">
+        Add Note
+      </button>
+    </div>
+
+    <!-- Notes List -->
+    <div class="bg-white rounded-lg shadow p-6">
+      <h3 class="font-bold text-gray-800 mb-4">Notes History</h3>
+      <div id="notesList" class="space-y-3 text-sm text-gray-600">
+        <p class="text-gray-400">No notes yet.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Get ticket ID from the URL
+    const ticketId = window.location.pathname.split("/").pop();
+
+    const statusColors = {
+      "Open": "bg-green-100 text-green-700",
+      "In Progress": "bg-yellow-100 text-yellow-700",
+      "Closed": "bg-gray-200 text-gray-600"
+    };
+
+    async function loadTicket() {
+      const res = await fetch(`/api/tickets/${ticketId}`);
+      const t = await res.json();
+
+      document.getElementById("ticketId").textContent = t.ticket_id;
+      document.getElementById("subject").textContent = t.subject;
+      document.getElementById("customerName").textContent = t.customer_name;
+      document.getElementById("customerEmail").textContent = t.customer_email;
+      document.getElementById("createdAt").textContent = t.created_at;
+      document.getElementById("updatedAt").textContent = t.updated_at;
+      document.getElementById("description").textContent = t.description;
+
+      const badge = document.getElementById("statusBadge");
+      badge.textContent = t.status;
+      badge.className = `px-3 py-1 rounded-full text-sm font-semibold ${statusColors[t.status]}`;
+
+      document.getElementById("statusSelect").value = t.status;
+
+      // Load notes
+      const notesList = document.getElementById("notesList");
+      if (t.notes && t.notes.length > 0) {
+        notesList.innerHTML = t.notes.map(n => `
+          <div class="border-l-4 border-blue-300 pl-3 py-1">
+            <p>${n.note_text}</p>
+            <p class="text-xs text-gray-400 mt-1">${n.created_at}</p>
+          </div>
+        `).join("");
+      }
+    }
+
+    async function updateStatus() {
+      const status = document.getElementById("statusSelect").value;
+      await fetch(`/api/tickets/${ticketId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status })
+      });
+      alert("Status updated!");
+      loadTicket();
+    }
+
+    async function addNote() {
+      const note = document.getElementById("noteInput").value.trim();
+      if (!note) return alert("Please write a note first.");
+      await fetch(`/api/tickets/${ticketId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note })
+      });
+      document.getElementById("noteInput").value = "";
+      loadTicket();
+    }
+
+    loadTicket();
+  </script>
+
+</body>
+</html>
