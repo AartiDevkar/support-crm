@@ -2,7 +2,6 @@ from fastapi import FastAPI, Form
 from pydantic import BaseModel
 from typing import Optional
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import sqlite3
 import uuid
@@ -10,7 +9,6 @@ from datetime import datetime
 
 # ─── App Setup ───────────────────────────────────────────
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 # ─── Database Setup ──────────────────────────────────────
