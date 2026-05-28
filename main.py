@@ -9,9 +9,6 @@ import secrets
 
 app = FastAPI()
 
-# ─── Session Store ───────────────────────────────────────
-sessions = {}
-
 # ─── Database ────────────────────────────────────────────
 def get_db():
     conn = sqlite3.connect("crm.db")
@@ -28,6 +25,17 @@ def create_tables():
             email TEXT UNIQUE NOT NULL,
             password_hash TEXT NOT NULL,
             role TEXT DEFAULT 'customer',
+            created_at TEXT
+        )
+    """)
+
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS sessions (
+            token TEXT PRIMARY KEY,
+            user_id INTEGER,
+            name TEXT,
+            email TEXT,
+            role TEXT,
             created_at TEXT
         )
     """)
@@ -60,7 +68,7 @@ def create_tables():
         )
     """)
 
-    # Create default admin account
+    # Create default admin if not exists
     admin = conn.execute("SELECT id FROM users WHERE email = 'admin@crm.com'").fetchone()
     if not admin:
         now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -87,8 +95,18 @@ def generate_ticket_id():
 
 def get_session(request: Request):
     token = request.cookies.get("session_token")
-    if token and token in sessions:
-        return sessions[token]
+    if not token:
+        return None
+    conn = get_db()
+    row = conn.execute("SELECT * FROM sessions WHERE token = ?", (token,)).fetchone()
+    conn.close()
+    if row:
+        return {
+            "id": row["user_id"],
+            "name": row["name"],
+            "email": row["email"],
+            "role": row["role"]
+        }
     return None
 
 def require_auth(request: Request):
@@ -113,17 +131,18 @@ def login(email: str = Form(...), password: str = Form(...)):
     conn.close()
     if user and user["password_hash"] == hash_pw(password):
         token = secrets.token_hex(32)
-        sessions[token] = {
-            "id": user["id"],
-            "name": user["name"],
-            "email": user["email"],
-            "role": user["role"]
-        }
+        now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        conn2 = get_db()
+        conn2.execute("""
+            INSERT INTO sessions (token, user_id, name, email, role, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (token, user["id"], user["name"], user["email"], user["role"], now))
+        conn2.commit()
+        conn2.close()
         resp = RedirectResponse(url="/", status_code=303)
-        resp.set_cookie("session_token", token, httponly=True)
+        resp.set_cookie("session_token", token, httponly=True, max_age=7*24*60*60)
         return resp
-    resp = RedirectResponse(url="/login?error=1", status_code=303)
-    return resp
+    return RedirectResponse(url="/login?error=1", status_code=303)
 
 @app.get("/signup")
 def signup_page(request: Request):
@@ -150,8 +169,11 @@ def signup(name: str = Form(...), email: str = Form(...), password: str = Form(.
 @app.get("/logout")
 def logout(request: Request):
     token = request.cookies.get("session_token")
-    if token in sessions:
-        del sessions[token]
+    if token:
+        conn = get_db()
+        conn.execute("DELETE FROM sessions WHERE token = ?", (token,))
+        conn.commit()
+        conn.close()
     resp = RedirectResponse(url="/login", status_code=303)
     resp.delete_cookie("session_token")
     return resp
@@ -189,25 +211,34 @@ def create_ticket(
     return RedirectResponse(url="/", status_code=303)
 
 @app.get("/api/tickets")
-def get_tickets(request: Request, status: str = None, search: str = None, priority: str = None):
+def get_tickets(
+    request: Request,
+    status: str = None,
+    search: str = None,
+    priority: str = None
+):
     session = require_auth(request)
     if not session:
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     conn = get_db()
 
     if session["role"] == "customer":
-        query = """SELECT t.*, u.name as creator_name, a.name as assignee_name
-                   FROM tickets t
-                   LEFT JOIN users u ON t.created_by = u.id
-                   LEFT JOIN users a ON t.assigned_to = a.id
-                   WHERE t.created_by = ?"""
+        query = """
+            SELECT t.*, u.name as creator_name, a.name as assignee_name
+            FROM tickets t
+            LEFT JOIN users u ON t.created_by = u.id
+            LEFT JOIN users a ON t.assigned_to = a.id
+            WHERE t.created_by = ?
+        """
         params = [session["id"]]
     else:
-        query = """SELECT t.*, u.name as creator_name, a.name as assignee_name
-                   FROM tickets t
-                   LEFT JOIN users u ON t.created_by = u.id
-                   LEFT JOIN users a ON t.assigned_to = a.id
-                   WHERE 1=1"""
+        query = """
+            SELECT t.*, u.name as creator_name, a.name as assignee_name
+            FROM tickets t
+            LEFT JOIN users u ON t.created_by = u.id
+            LEFT JOIN users a ON t.assigned_to = a.id
+            WHERE 1=1
+        """
         params = []
 
     if status:
@@ -273,15 +304,29 @@ def update_ticket(ticket_id: str, body: UpdateTicket, request: Request):
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     conn = get_db()
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    # Only admin and agent can change status
     if body.status and session["role"] in ["admin", "agent"]:
-        conn.execute("UPDATE tickets SET status=?, updated_at=? WHERE ticket_id=?", (body.status, now, ticket_id))
+        conn.execute("UPDATE tickets SET status=?, updated_at=? WHERE ticket_id=?",
+                     (body.status, now, ticket_id))
+
+    # Only admin and agent can change priority
     if body.priority and session["role"] in ["admin", "agent"]:
-        conn.execute("UPDATE tickets SET priority=?, updated_at=? WHERE ticket_id=?", (body.priority, now, ticket_id))
+        conn.execute("UPDATE tickets SET priority=?, updated_at=? WHERE ticket_id=?",
+                     (body.priority, now, ticket_id))
+
+    # Only admin can assign tickets
     if body.assigned_to is not None and session["role"] == "admin":
-        conn.execute("UPDATE tickets SET assigned_to=?, updated_at=? WHERE ticket_id=?", (body.assigned_to, now, ticket_id))
+        conn.execute("UPDATE tickets SET assigned_to=?, updated_at=? WHERE ticket_id=?",
+                     (body.assigned_to, now, ticket_id))
+
+    # Anyone can add a note
     if body.note:
-        conn.execute("INSERT INTO notes (ticket_id, user_id, note_text, created_at) VALUES (?,?,?,?)",
-                     (ticket_id, session["id"], body.note, now))
+        conn.execute("""
+            INSERT INTO notes (ticket_id, user_id, note_text, created_at)
+            VALUES (?, ?, ?, ?)
+        """, (ticket_id, session["id"], body.note, now))
+
     conn.commit()
     conn.close()
     return {"success": True, "updated_at": now}
@@ -304,7 +349,9 @@ def get_users(request: Request):
     if not require_admin(request):
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     conn = get_db()
-    users = conn.execute("SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC").fetchall()
+    users = conn.execute(
+        "SELECT id, name, email, role, created_at FROM users ORDER BY created_at DESC"
+    ).fetchall()
     conn.close()
     return [dict(u) for u in users]
 
@@ -313,7 +360,9 @@ def get_agents(request: Request):
     if not require_auth(request):
         return JSONResponse({"error": "Unauthorized"}, status_code=401)
     conn = get_db()
-    agents = conn.execute("SELECT id, name, email FROM users WHERE role IN ('admin','agent')").fetchall()
+    agents = conn.execute(
+        "SELECT id, name, email FROM users WHERE role IN ('admin', 'agent')"
+    ).fetchall()
     conn.close()
     return [dict(a) for a in agents]
 

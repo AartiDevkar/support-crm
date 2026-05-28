@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Dashboard | Support CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- Navbar -->
+  <nav class="bg-white border-b border-gray-200 px-6 py-3 flex justify-between items-center shadow-sm sticky top-0 z-10">
+    <div class="flex items-center gap-3">
+      <span class="text-xl font-bold text-blue-600">🎫 Support CRM</span>
+      <span class="text-xs bg-indigo-100 text-indigo-600 font-semibold px-2 py-1 rounded-full">Admin Panel</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="/" class="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1.5 rounded-lg hover:bg-gray-200 transition">← Back to Tickets</a>
+      <a href="/logout" class="text-sm font-medium text-white bg-red-500 px-3 py-1.5 rounded-lg hover:bg-red-600 transition">Logout</a>
+    </div>
+  </nav>
+
+  <div class="max-w-7xl mx-auto px-4 py-8 space-y-8">
+
+    <!-- Stats Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Total Tickets</p>
+        <p id="statTotal" class="text-3xl font-bold text-gray-800">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Open</p>
+        <p id="statOpen" class="text-3xl font-bold text-green-600">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">In Progress</p>
+        <p id="statProgress" class="text-3xl font-bold text-yellow-500">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Closed</p>
+        <p id="statClosed" class="text-3xl font-bold text-gray-400">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Total Users</p>
+        <p id="statUsers" class="text-3xl font-bold text-blue-600">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Agents</p>
+        <p id="statAgents" class="text-3xl font-bold text-indigo-600">—</p>
+      </div>
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+        <p class="text-xs text-gray-500 uppercase font-medium mb-1">Customers</p>
+        <p id="statCustomers" class="text-3xl font-bold text-purple-600">—</p>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 border-b border-gray-200">
+      <button onclick="showTab('tickets')" id="tabTickets"
+        class="px-5 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 transition">
+        🎫 All Tickets
+      </button>
+      <button onclick="showTab('users')" id="tabUsers"
+        class="px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 transition">
+        👥 Manage Users
+      </button>
+    </div>
+
+    <!-- Tickets Tab -->
+    <div id="ticketsTab">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center">
+          <h2 class="font-semibold text-gray-800">All Tickets</h2>
+          <input id="ticketSearch" type="text" placeholder="Search tickets..."
+            oninput="loadTickets()"
+            class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-64"/>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm text-left">
+            <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
+              <tr>
+                <th class="px-4 py-3">ID</th>
+                <th class="px-4 py-3">Subject</th>
+                <th class="px-4 py-3">Raised By</th>
+                <th class="px-4 py-3">Priority</th>
+                <th class="px-4 py-3">Status</th>
+                <th class="px-4 py-3">Assigned To</th>
+                <th class="px-4 py-3">Date</th>
+                <th class="px-4 py-3">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminTicketBody">
+              <tr><td colspan="8" class="text-center py-10 text-gray-400">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users Tab -->
+    <div id="usersTab" class="hidden">
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-gray-100">
+          <h2 class="font-semibold text-gray-800">Manage Users</h2>
+          <p class="text-xs text-gray-400 mt-0.5">Change roles or remove users from the system</p>
+        </div>
+        <table class="w-full text-sm text-left">
+          <thead class="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500">
+            <tr>
+              <th class="px-4 py-3">Name</th>
+              <th class="px-4 py-3">Email</th>
+              <th class="px-4 py-3">Role</th>
+              <th class="px-4 py-3">Joined</th>
+              <th class="px-4 py-3">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="usersBody">
+            <tr><td colspan="5" class="text-center py-10 text-gray-400">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Edit Ticket Modal -->
+  <div id="editModal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md mx-4">
+      <h3 class="font-bold text-gray-800 text-lg mb-5">Edit Ticket</h3>
+      <input type="hidden" id="editTicketId"/>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Status</label>
+          <select id="editStatus"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="Open">Open</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Closed">Closed</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Priority</label>
+          <select id="editPriority"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="Low">🟢 Low</option>
+            <option value="Medium">🟡 Medium</option>
+            <option value="High">🟠 High</option>
+            <option value="Urgent">🔴 Urgent</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Assign To</label>
+          <select id="editAssign"
+            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button onclick="saveTicketEdit()"
+          class="flex-1 bg-blue-600 text-white font-semibold py-2 rounded-lg hover:bg-blue-700 transition text-sm">
+          Save Changes
+        </button>
+        <button onclick="closeModal()"
+          class="flex-1 border border-gray-300 text-gray-600 font-semibold py-2 rounded-lg hover:bg-gray-50 transition text-sm">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const priorityColors = {
+      "Urgent": "bg-red-100 text-red-700",
+      "High": "bg-orange-100 text-orange-700",
+      "Medium": "bg-yellow-100 text-yellow-700",
+      "Low": "bg-green-100 text-green-700"
+    };
+    const statusColors = {
+      "Open": "bg-green-100 text-green-700",
+      "In Progress": "bg-yellow-100 text-yellow-700",
+      "Closed": "bg-gray-100 text-gray-600"
+    };
+    const roleColors = {
+      "admin": "bg-red-100 text-red-700",
+      "agent": "bg-blue-100 text-blue-700",
+      "customer": "bg-gray-100 text-gray-600"
+    };
+
+    function badge(text, colorMap) {
+      const cls = colorMap[text] || "bg-gray-100 text-gray-600";
+      return `<span class="px-2 py-0.5 rounded-full text-xs font-semibold ${cls}">${text}</span>`;
+    }
+
+    function showTab(tab) {
+      document.getElementById("ticketsTab").classList.toggle("hidden", tab !== "tickets");
+      document.getElementById("usersTab").classList.toggle("hidden", tab !== "users");
+      document.getElementById("tabTickets").className = `px-5 py-2.5 text-sm font-semibold border-b-2 transition ${tab === "tickets" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`;
+      document.getElementById("tabUsers").className = `px-5 py-2.5 text-sm font-semibold border-b-2 transition ${tab === "users" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-500 hover:text-gray-700"}`;
+    }
+
+    async function loadStats() {
+      const res = await fetch("/api/stats");
+      const s = await res.json();
+      document.getElementById("statTotal").textContent = s.total;
+      document.getElementById("statOpen").textContent = s.open;
+      document.getElementById("statProgress").textContent = s.in_progress;
+      document.getElementById("statClosed").textContent = s.closed;
+      document.getElementById("statUsers").textContent = s.total_users;
+      document.getElementById("statAgents").textContent = s.agents;
+      document.getElementById("statCustomers").textContent = s.customers;
+    }
+
+    async function loadTickets() {
+      const search = document.getElementById("ticketSearch").value;
+      let url = `/api/tickets?`;
+      if (search) url += `search=${encodeURIComponent(search)}`;
+      const res = await fetch(url);
+      const tickets = await res.json();
+      const tbody = document.getElementById("adminTicketBody");
+
+      if (tickets.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-gray-400">No tickets found.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = tickets.map(t => `
+        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-mono text-xs text-blue-500">${t.ticket_id}</td>
+          <td class="px-4 py-3 font-medium text-gray-800 max-w-[180px] truncate">${t.subject}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">${t.creator_name || "—"}</td>
+          <td class="px-4 py-3">${badge(t.priority, priorityColors)}</td>
+          <td class="px-4 py-3">${badge(t.status, statusColors)}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">${t.assignee_name || "Unassigned"}</td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${t.created_at?.split(" ")[0]}</td>
+          <td class="px-4 py-3">
+            <div class="flex gap-2">
+              <button onclick="openEditModal('${t.ticket_id}', '${t.status}', '${t.priority}', ${t.assigned_to || 0})"
+                class="text-xs text-blue-600 font-medium hover:underline">Edit</button>
+              <button onclick="deleteTicket('${t.ticket_id}')"
+                class="text-xs text-red-500 font-medium hover:underline">Delete</button>
+            </div>
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadUsers() {
+      const res = await fetch("/api/users");
+      const users = await res.json();
+      const tbody = document.getElementById("usersBody");
+
+      tbody.innerHTML = users.map(u => `
+        <tr class="border-t border-gray-100 hover:bg-gray-50 transition">
+          <td class="px-4 py-3 font-medium text-gray-800">${u.name}</td>
+          <td class="px-4 py-3 text-gray-500 text-xs">${u.email}</td>
+          <td class="px-4 py-3">
+            <select onchange="updateUserRole(${u.id}, this.value)"
+              class="border border-gray-300 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <option value="customer" ${u.role === "customer" ? "selected" : ""}>Customer</option>
+              <option value="agent" ${u.role === "agent" ? "selected" : ""}>Agent</option>
+              <option value="admin" ${u.role === "admin" ? "selected" : ""}>Admin</option>
+            </select>
+          </td>
+          <td class="px-4 py-3 text-gray-400 text-xs">${u.created_at?.split(" ")[0]}</td>
+          <td class="px-4 py-3">
+            ${u.email !== "admin@crm.com" ? `
+              <button onclick="deleteUser(${u.id})"
+                class="text-xs text-red-500 font-medium hover:underline">Remove</button>
+            ` : `<span class="text-xs text-gray-300">Protected</span>`}
+          </td>
+        </tr>
+      `).join("");
+    }
+
+    let agents = [];
+
+    async function loadAgents() {
+      const res = await fetch("/api/agents");
+      agents = await res.json();
+    }
+
+    async function openEditModal(ticketId, status, priority, assignedTo) {
+      document.getElementById("editTicketId").value = ticketId;
+      document.getElementById("editStatus").value = status;
+      document.getElementById("editPriority").value = priority;
+
+      const sel = document.getElementById("editAssign");
+      sel.innerHTML = `<option value="">Unassigned</option>`;
+      agents.forEach(a => {
+        const opt = document.createElement("option");
+        opt.value = a.id;
+        opt.textContent = a.name;
+        if (a.id === assignedTo) opt.selected = true;
+        sel.appendChild(opt);
+      });
+
+      document.getElementById("editModal").classList.remove("hidden");
+    }
+
+    function closeModal() {
+      document.getElementById("editModal").classList.add("hidden");
+    }
+
+    async function saveTicketEdit() {
+      const ticketId = document.getElementById("editTicketId").value;
+      const body = {
+        status: document.getElementById("editStatus").value,
+        priority: document.getElementById("editPriority").value,
+      };
+      const assignVal = document.getElementById("editAssign").value;
+      if (assignVal) body.assigned_to = parseInt(assignVal);
+
+      await fetch(`/api/tickets/${ticketId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      closeModal();
+      loadTickets();
+      loadStats();
+    }
+
+    async function deleteTicket(ticketId) {
+      if (!confirm(`Delete ticket ${ticketId}? This cannot be undone.`)) return;
+      await fetch(`/api/tickets/${ticketId}`, { method: "DELETE" });
+      loadTickets();
+      loadStats();
+    }
+
+    async function updateUserRole(userId, role) {
+      await fetch(`/api/users/${userId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role })
+      });
+      loadStats();
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm("Remove this user? This cannot be undone.")) return;
+      await fetch(`/api/users/${userId}`, { method: "DELETE" });
+      loadUsers();
+      loadStats();
+    }
+
+    // Init
+    loadStats();
+    loadTickets();
+    loadUsers();
+    loadAgents();
+  </script>
+
+</body>
+</html>
